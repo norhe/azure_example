@@ -23,3 +23,15 @@ variable "location" {
   description = "The region in which to deploy the VM"
   default     = "East Us"
 }
+
+variable "admin_username" {
+  type        = "string"
+  description = "root account"
+  default     = "ehron"
+}
+
+variable "admin_password" {
+  type        = "string"
+  description = "root pw"
+  default     = "Abc123!"
+}

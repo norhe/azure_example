@@ -42,7 +42,7 @@ resource "azurerm_public_ip" "web_test_ip" {
 
 # Create network interface
 resource "azurerm_network_interface" "web_test_nic" {
-  name                = "tfni"
+  name                = "wtnic"
   location            = "${var.location}"
   resource_group_name = "${azurerm_resource_group.web_test.name}"
 
@@ -52,6 +52,63 @@ resource "azurerm_network_interface" "web_test_nic" {
     private_ip_address_allocation = "static"
     private_ip_address            = "10.0.2.5"
     public_ip_address_id          = "${azurerm_public_ip.web_test_ip.id}"
+  }
+
+  network_security_group_id = "${azurerm_network_security_group.sg_web_test.id}"
+}
+
+# Create security groups
+resource "azurerm_network_security_group" "sg_web_test" {
+  name                = "sg_web_test"
+  location            = "${var.location}"
+  resource_group_name = "${azurerm_resource_group.web_test.name}"
+
+  security_rule {
+    name                       = "default-allow-ssh"
+    priority                   = 1000
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "default-allow-8080"
+    priority                   = 1001
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8080"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "allow-response-traffic"
+    priority                   = 1002
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "deny-all"
+    priority                   = 4000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
   }
 }
 
@@ -100,12 +157,24 @@ resource "azurerm_virtual_machine" "server" {
 
   os_profile {
     computer_name  = "server"
-    admin_username = "ehron"
-    admin_password = "Abc123!"
+    admin_username = "${var.admin_username}"
+    admin_password = "${var.admin_password}"
   }
 
   os_profile_linux_config {
     disable_password_authentication = false
+  }
+
+  connection {
+    user     = "${var.admin_username}"
+    password = "${var.admin_password}"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo apt-get update",
+      "sudo apt-get install nginx-light",
+    ]
   }
 
   tags {
